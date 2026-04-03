@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
 import { ArrowLeft, ThumbsUp, Flag, Share2 } from "lucide-react";
 import AnonymousAvatar from "../components/shared/AnonymousAvatar";
@@ -5,64 +6,217 @@ import CounsellorBadge from "../components/shared/CounsellorBadge";
 import TopicTag from "../components/feed/TopicTag";
 import CommentSection from "../components/feed/CommentSection";
 import { Button } from "../components/ui/button";
+import { supabase } from "../lib/supabase";
+import { getAuthorPresentation, type DbComment, type DbPost, type DbProfile } from "../lib/community";
+import { useAuth } from "../context/AuthContext";
 
-// Mock data
-const mockPost = {
-  id: '1',
-  content: 'I\'ve been feeling really overwhelmed with my final year project. The deadline is approaching and I feel like I\'m not making enough progress. Sometimes I wonder if I\'m cut out for this program. Has anyone else felt this way? I try to work on it every day but it feels like I\'m stuck. The literature review alone is taking so much longer than I expected. I\'m afraid to talk to my supervisor because I don\'t want them to think I\'m not capable.',
-  topicTag: 'academic',
+interface DetailPost {
+  id: string;
+  content: string;
+  topicTag: string;
   author: {
-    id: 'user-1',
-    displayName: 'Anonymous Student',
-    isAnonymous: true,
-    isCounsellor: false
-  },
-  upvotes: 12,
-  createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-};
+    id: string;
+    displayName: string;
+    isAnonymous: boolean;
+    isCounsellor: boolean;
+    avatarUrl?: string;
+  };
+  upvotes: number;
+  isLiked: boolean;
+  createdAt: string;
+}
 
-const mockComments = [
-  {
-    id: 'comment-1',
-    content: 'I totally understand what you\'re going through. I felt the same way during my final year. What helped me was breaking the project into smaller, manageable tasks. Also, your supervisor is there to help - they want you to succeed!',
-    author: {
-      id: 'user-5',
-      displayName: 'Anonymous Student',
-      isAnonymous: true,
-      isCounsellor: false
-    },
-    upvotes: 8,
-    createdAt: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'comment-2',
-    content: 'This is a very common feeling, especially among final year students. What you\'re experiencing is called imposter syndrome, and it affects many high-achieving students. The fact that you were admitted to KNUST and have made it this far shows you have what it takes. I\'d like to help you develop some strategies for managing your workload and building confidence. Let\'s schedule a one-on-one session to discuss your specific concerns. In the meantime, please reach out to your supervisor - they\'re your advocate, not your judge.',
-    author: {
-      id: 'counsellor-1',
-      displayName: 'Dr. Kwame Mensah',
-      isAnonymous: false,
-      isCounsellor: true,
-      avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=counsellor1'
-    },
-    upvotes: 24,
-    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'comment-3',
-    content: 'You got this! Final year is tough for everyone. Remember to take breaks and don\'t be too hard on yourself.',
-    author: {
-      id: 'user-6',
-      displayName: 'HopefulEngineer',
-      isAnonymous: false,
-      isCounsellor: false
-    },
-    upvotes: 5,
-    createdAt: new Date(Date.now() - 0.5 * 60 * 60 * 1000).toISOString()
-  }
-];
+interface DetailComment {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    displayName: string;
+    isAnonymous: boolean;
+    isCounsellor: boolean;
+    avatarUrl?: string;
+  };
+  upvotes: number;
+  createdAt: string;
+}
 
 export default function PostDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const [post, setPost] = useState<DetailPost | null>(null);
+  const [comments, setComments] = useState<DetailComment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadPostDetail = async () => {
+    if (!id) return;
+
+    setIsLoading(true);
+    setError('');
+
+    const { data: rawPost, error: postError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', id)
+      .eq('is_approved', true)
+      .single<DbPost>();
+
+    if (postError || !rawPost) {
+      setError(postError?.message || 'Post not found.');
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: postAuthor } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', rawPost.author_id)
+      .single<DbProfile>();
+
+    const [{ data: rawComments }, { data: votes }] = await Promise.all([
+      supabase
+        .from('comments')
+        .select('*')
+        .eq('post_id', rawPost.id)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('post_votes')
+        .select('post_id, user_id')
+        .eq('post_id', rawPost.id),
+    ]);
+
+    const commentRows = (rawComments ?? []) as DbComment[];
+    const commentAuthorIds = [...new Set(commentRows.map((comment) => comment.author_id))];
+    const profileMap = new Map<string, DbProfile>();
+
+    if (postAuthor) {
+      profileMap.set(postAuthor.id, postAuthor);
+    }
+
+    if (commentAuthorIds.length > 0) {
+      const { data: commentAuthors } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', commentAuthorIds);
+
+      ((commentAuthors ?? []) as DbProfile[]).forEach((profile) => {
+        profileMap.set(profile.id, profile);
+      });
+    }
+
+    const postAuthorPresentation = getAuthorPresentation(profileMap.get(rawPost.author_id));
+
+    setPost({
+      id: rawPost.id,
+      content: rawPost.content,
+      topicTag: rawPost.topic_tag,
+      author: {
+        id: rawPost.author_id,
+        displayName: postAuthorPresentation.displayName,
+        isAnonymous: postAuthorPresentation.isAnonymous,
+        isCounsellor: postAuthorPresentation.isCounsellor,
+        avatarUrl: postAuthorPresentation.avatarUrl,
+      },
+      upvotes: votes?.length ?? 0,
+      isLiked: (votes ?? []).some((vote: { post_id: string; user_id: string }) => vote.user_id === user?.id),
+      createdAt: rawPost.created_at,
+    });
+
+    setComments(
+      commentRows.map((comment) => {
+        const author = getAuthorPresentation(profileMap.get(comment.author_id));
+        return {
+          id: comment.id,
+          content: comment.content,
+          author: {
+            id: comment.author_id,
+            displayName: author.displayName,
+            isAnonymous: author.isAnonymous,
+            isCounsellor: author.isCounsellor,
+            avatarUrl: author.avatarUrl,
+          },
+          upvotes: 0,
+          createdAt: comment.created_at,
+        };
+      }),
+    );
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadPostDetail();
+  }, [id]);
+
+  const handleSubmitComment = async (content: string): Promise<DetailComment | null> => {
+    if (!id || !user) {
+      return null;
+    }
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('comments')
+      .insert({
+        post_id: id,
+        author_id: user.id,
+        content,
+      })
+      .select('*')
+      .single<DbComment>();
+
+    if (insertError || !inserted) {
+      throw new Error(insertError?.message || 'Could not post comment.');
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single<DbProfile>();
+
+    const author = getAuthorPresentation(profile || undefined);
+
+    return {
+      id: inserted.id,
+      content: inserted.content,
+      author: {
+        id: inserted.author_id,
+        displayName: author.displayName,
+        isAnonymous: author.isAnonymous,
+        isCounsellor: author.isCounsellor,
+        avatarUrl: author.avatarUrl,
+      },
+      upvotes: 0,
+      createdAt: inserted.created_at,
+    };
+  };
+
+  const toggleLike = async () => {
+    if (!id || !user || !post) return;
+
+    if (post.isLiked) {
+      const { error: deleteError } = await supabase
+        .from('post_votes')
+        .delete()
+        .eq('post_id', id)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+    } else {
+      const { error: insertError } = await supabase
+        .from('post_votes')
+        .insert({ post_id: id, user_id: user.id });
+
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+    }
+
+    await loadPostDetail();
+  };
 
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
@@ -89,42 +243,51 @@ export default function PostDetail() {
 
         {/* Post */}
         <div className="bg-white rounded-xl shadow-md p-6 md:p-8 border border-[#E8F5EE] mb-6">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {isLoading && <p className="text-gray-600">Loading post...</p>}
+          {!isLoading && !post && <p className="text-gray-600">This post is unavailable.</p>}
+          {post && (
+            <>
           {/* Author Info */}
           <div className="flex items-start gap-3 mb-4">
-            {mockPost.author.isAnonymous ? (
-              <AnonymousAvatar seed={mockPost.author.id} size={48} />
+            {post.author.isAnonymous ? (
+              <AnonymousAvatar seed={post.author.id} size={48} />
             ) : (
               <img
-                src={mockPost.author.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mockPost.author.id}`}
-                alt={mockPost.author.displayName}
+                src={post.author.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author.id}`}
+                alt={post.author.displayName}
                 className="w-12 h-12 rounded-full"
               />
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-lg text-[#1A1A1A]">
-                  {mockPost.author.displayName}
+                  {post.author.displayName}
                 </span>
-                {mockPost.author.isCounsellor && <CounsellorBadge />}
+                {post.author.isCounsellor && <CounsellorBadge />}
               </div>
               <div className="flex items-center gap-2 flex-wrap mt-1">
-                <TopicTag topic={mockPost.topicTag} />
+                <TopicTag topic={post.topicTag} />
                 <span className="text-sm text-gray-500">•</span>
-                <span className="text-sm text-gray-500">{formatTimeAgo(mockPost.createdAt)}</span>
+                <span className="text-sm text-gray-500">{formatTimeAgo(post.createdAt)}</span>
               </div>
             </div>
           </div>
 
           {/* Content */}
           <div className="prose max-w-none mb-6">
-            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{mockPost.content}</p>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{post.content}</p>
           </div>
 
           {/* Post Actions */}
           <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-            <Button variant="outline" className="gap-2">
-              <ThumbsUp className="w-4 h-4" />
-              <span>{mockPost.upvotes}</span>
+            <Button variant="outline" onClick={toggleLike} className="gap-2">
+              <ThumbsUp className={`w-4 h-4 ${post.isLiked ? 'fill-current text-[#006B3F]' : ''}`} />
+              <span>{post.upvotes}</span>
             </Button>
             <Button variant="outline" className="gap-2">
               <Share2 className="w-4 h-4" />
@@ -135,14 +298,16 @@ export default function PostDetail() {
               <span className="hidden sm:inline">Report</span>
             </Button>
           </div>
+            </>
+          )}
         </div>
 
         {/* Comments */}
         <div className="bg-white rounded-xl shadow-md p-6 md:p-8 border border-[#E8F5EE]">
           <h2 className="text-2xl font-bold text-[#004D2C] mb-6">
-            Comments ({mockComments.length})
+            Comments ({comments.length})
           </h2>
-          <CommentSection postId={id || '1'} comments={mockComments} />
+          <CommentSection postId={id || '1'} comments={comments} onSubmitComment={handleSubmitComment} />
         </div>
       </div>
     </div>

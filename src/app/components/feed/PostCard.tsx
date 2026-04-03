@@ -17,13 +17,15 @@ interface PostCardProps {
       avatarUrl?: string;
     };
     upvotes: number;
+    isLiked: boolean;
     commentCount: number;
     hasCounsellorComment: boolean;
     createdAt: string;
   };
+  onToggleLike?: (postId: string, isLiked: boolean) => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onToggleLike }: PostCardProps) {
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -36,8 +38,8 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <Link to={`/post/${post.id}`}>
-      <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] hover:shadow-lg transition-shadow cursor-pointer">
+    <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] hover:shadow-lg transition-shadow">
+      <Link to={`/post/${post.id}`} className="block">
         {/* Author Info */}
         <div className="flex items-start gap-3 mb-4">
           {post.author.isAnonymous ? (
@@ -66,13 +68,18 @@ export default function PostCard({ post }: PostCardProps) {
 
         {/* Content Preview */}
         <p className="text-gray-700 mb-4 line-clamp-3">{post.content}</p>
+      </Link>
 
         {/* Post Stats */}
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <div className="flex items-center gap-1">
-            <ThumbsUp className="w-4 h-4" />
+          <button
+            type="button"
+            onClick={() => onToggleLike?.(post.id, post.isLiked)}
+            className="flex items-center gap-1 hover:text-[#006B3F] transition-colors"
+          >
+            <ThumbsUp className={`w-4 h-4 ${post.isLiked ? 'fill-current text-[#006B3F]' : ''}`} />
             <span>{post.upvotes}</span>
-          </div>
+          </button>
           <div className="flex items-center gap-1">
             <MessageCircle className="w-4 h-4" />
             <span>{post.commentCount} {post.commentCount === 1 ? 'comment' : 'comments'}</span>
@@ -84,7 +91,6 @@ export default function PostCard({ post }: PostCardProps) {
             </div>
           )}
         </div>
-      </div>
-    </Link>
+    </div>
   );
 }

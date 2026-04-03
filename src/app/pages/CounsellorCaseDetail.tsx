@@ -1,14 +1,63 @@
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router";
 import { ArrowLeft, MessageCircle, BookOpen, AlertTriangle, TrendingUp } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { mockConversations, mockEnrolments, mockProgrammes, mockMessages } from "../data/mockData";
+import { supabase } from "../lib/supabase";
+import { type DbConversation, type DbEnrolment, type DbMessage, type DbProgramme } from "../lib/community";
 
 export default function CounsellorCaseDetail() {
   const { id } = useParams();
+  const [conversation, setConversation] = useState<DbConversation | null>(null);
+  const [enrolments, setEnrolments] = useState<DbEnrolment[]>([]);
+  const [messages, setMessages] = useState<DbMessage[]>([]);
+  const [programmeMap, setProgrammeMap] = useState<Map<string, DbProgramme>>(new Map());
 
-  const conversation = mockConversations.find(c => c.student_id === id);
-  const enrolments = mockEnrolments.filter(e => e.student_id === id);
-  const messages = mockMessages.filter(m => m.conversation_id === conversation?.id);
+  useEffect(() => {
+    const loadCaseDetail = async () => {
+      if (!id) return;
+
+      const [{ data: conversationRows }, { data: enrolmentRows }] = await Promise.all([
+        supabase
+          .from('conversations')
+          .select('*')
+          .eq('student_id', id)
+          .order('last_message_at', { ascending: false })
+          .limit(1),
+        supabase.from('enrolments').select('*').eq('student_id', id),
+      ]);
+
+      const primaryConversation = ((conversationRows ?? []) as DbConversation[])[0] || null;
+      const loadedEnrolments = (enrolmentRows ?? []) as DbEnrolment[];
+
+      setConversation(primaryConversation);
+      setEnrolments(loadedEnrolments);
+
+      if (primaryConversation) {
+        const { data: messageRows } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', primaryConversation.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        setMessages(((messageRows ?? []) as DbMessage[]).reverse());
+      } else {
+        setMessages([]);
+      }
+
+      const programmeIds = [...new Set(loadedEnrolments.map((enrolment) => enrolment.programme_id))];
+      if (programmeIds.length > 0) {
+        const { data: programmes } = await supabase.from('programmes').select('*').in('id', programmeIds);
+        const map = new Map<string, DbProgramme>();
+        ((programmes ?? []) as DbProgramme[]).forEach((programme) => map.set(programme.id, programme));
+        setProgrammeMap(map);
+      } else {
+        setProgrammeMap(new Map());
+      }
+    };
+
+    loadCaseDetail();
+  }, [id]);
 
   return (
     <div className="min-h-screen bg-[#E8F5EE] py-8 px-4">
@@ -62,7 +111,7 @@ export default function CounsellorCaseDetail() {
                   <div key={message.id} className="p-4 rounded-lg bg-gray-50">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-sm font-semibold text-[#004D2C]">
-                        {message.sender_id.startsWith('counsellor') ? 'You' : 'Student'}
+                        {message.sender_id === conversation?.counsellor_id ? 'You' : 'Student'}
                       </span>
                       <span className="text-xs text-gray-500">
                         {new Date(message.created_at).toLocaleDateString()}
@@ -80,7 +129,7 @@ export default function CounsellorCaseDetail() {
               {enrolments.length > 0 ? (
                 <div className="space-y-4">
                   {enrolments.map((enrolment) => {
-                    const programme = mockProgrammes.find(p => p.id === enrolment.programme_id);
+                    const programme = programmeMap.get(enrolment.programme_id);
                     const progressPercent = (enrolment.progress / enrolment.total_days) * 100;
 
                     return (

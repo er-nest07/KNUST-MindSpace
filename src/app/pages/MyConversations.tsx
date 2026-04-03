@@ -1,14 +1,61 @@
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { MessageCircle, Clock, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { mockConversations, mockCounsellors } from "../data/mockData";
 import CounsellorBadge from "../components/shared/CounsellorBadge";
 import { Button } from "../components/ui/button";
+import { supabase } from "../lib/supabase";
+import { type DbConversation, type DbProfile } from "../lib/community";
 
 export default function MyConversations() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [conversations, setConversations] = useState<DbConversation[]>([]);
+  const [counsellorMap, setCounsellorMap] = useState<Map<string, DbProfile>>(new Map());
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const conversations = mockConversations.filter(c => c.student_id === user?.id || c.student_id === 'current-student');
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!user) {
+        setConversations([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+
+      const conversationQuery = user.role === 'counsellor'
+        ? supabase.from('conversations').select('*').eq('counsellor_id', user.id)
+        : supabase.from('conversations').select('*').eq('student_id', user.id);
+
+      const { data, error: loadError } = await conversationQuery.order('last_message_at', { ascending: false });
+
+      if (loadError) {
+        setError(loadError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      const conversationRows = (data ?? []) as DbConversation[];
+      setConversations(conversationRows);
+
+      const counsellorIds = [...new Set(conversationRows.map((c) => c.counsellor_id))];
+      if (counsellorIds.length > 0) {
+        const { data: counsellors } = await supabase.from('profiles').select('*').in('id', counsellorIds);
+        const map = new Map<string, DbProfile>();
+        ((counsellors ?? []) as DbProfile[]).forEach((c) => map.set(c.id, c));
+        setCounsellorMap(map);
+      } else {
+        setCounsellorMap(new Map());
+      }
+
+      setIsLoading(false);
+    };
+
+    loadConversations();
+  }, [user?.id, user?.role]);
 
   const formatTimeAgo = (date: string) => {
     const now = new Date();
@@ -47,28 +94,41 @@ export default function MyConversations() {
 
         {/* Start New Conversation */}
         <div className="mb-6">
-          <Button className="w-full sm:w-auto bg-[#FDB913] hover:bg-[#e5a710] text-[#004D2C]">
+          <Button
+            onClick={() => navigate('/counsellors')}
+            className="w-full sm:w-auto bg-[#FDB913] hover:bg-[#e5a710] text-[#004D2C]"
+          >
             <MessageCircle className="w-5 h-5 mr-2" />
             Start New Conversation
           </Button>
         </div>
 
         {/* Conversations List */}
-        {conversations.length === 0 ? (
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        {isLoading && (
+          <div className="bg-white rounded-xl shadow-md p-8 text-center text-gray-600">
+            Loading conversations...
+          </div>
+        )}
+        {!isLoading && conversations.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-12 text-center">
             <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="font-bold text-[#004D2C] mb-2">No conversations yet</h3>
             <p className="text-gray-600 mb-6">
               Start a conversation with a counsellor to get personalized support
             </p>
-            <Button className="bg-[#006B3F] hover:bg-[#004D2C] text-white">
+            <Button onClick={() => navigate('/counsellors')} className="bg-[#006B3F] hover:bg-[#004D2C] text-white">
               Browse Counsellors
             </Button>
           </div>
-        ) : (
+        ) : !isLoading ? (
           <div className="space-y-4">
             {conversations.map((conversation) => {
-              const counsellor = mockCounsellors.find(c => c.id === conversation.counsellor_id);
+              const counsellor = counsellorMap.get(conversation.counsellor_id);
               
               return (
                 <Link
@@ -85,18 +145,18 @@ export default function MyConversations() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-[#004D2C]">{counsellor?.display_name}</h3>
+                        <h3 className="font-bold text-[#004D2C]">{counsellor?.display_name || 'Assigned Counsellor'}</h3>
                         <CounsellorBadge />
                       </div>
                       <p className="text-sm text-gray-600 mb-2">{counsellor?.counsellor_title}</p>
-                      <p className="text-sm text-gray-700 truncate">{conversation.last_message}</p>
+                      <p className="text-sm text-gray-700 truncate">{conversation.last_message || 'No messages yet'}</p>
                     </div>
 
                     {/* Meta */}
                     <div className="flex flex-col items-end gap-2 flex-shrink-0">
                       <div className="flex items-center gap-1 text-sm text-gray-500">
                         <Clock className="w-4 h-4" />
-                        <span>{formatTimeAgo(conversation.last_message_at)}</span>
+                        <span>{conversation.last_message_at ? formatTimeAgo(conversation.last_message_at) : 'new'}</span>
                       </div>
                       <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         conversation.status === 'active' 
@@ -113,7 +173,7 @@ export default function MyConversations() {
               );
             })}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

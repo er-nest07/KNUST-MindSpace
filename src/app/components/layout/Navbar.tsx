@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { MessageCircle, Home, Users, BookOpen, User, AlertCircle } from "lucide-react";
+import { MessageCircle, Home, Users, BookOpen, User, AlertCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Navbar() {
@@ -48,6 +48,17 @@ export default function Navbar() {
                     <span>Messages</span>
                   </Link>
                   <Link
+                    to="/counsellors"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      isActive('/counsellors')
+                        ? 'border-b-2 border-[#FDB913]'
+                        : 'hover:bg-[#006B3F]'
+                    }`}
+                  >
+                    <Users className="w-5 h-5" />
+                    <span>Counsellors</span>
+                  </Link>
+                  <Link
                     to="/programmes"
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                       isActive('/programmes') 
@@ -79,6 +90,33 @@ export default function Navbar() {
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                       isActive('/feed') 
                         ? 'border-b-2 border-[#FDB913]' 
+                        : 'hover:bg-[#006B3F]'
+                    }`}
+                  >
+                    <Users className="w-5 h-5" />
+                    <span>Community</span>
+                  </Link>
+                </>
+              )}
+
+              {user.role === 'admin' && (
+                <>
+                  <Link
+                    to="/admin/dashboard"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      isActive('/admin/dashboard')
+                        ? 'border-b-2 border-[#FDB913]'
+                        : 'hover:bg-[#006B3F]'
+                    }`}
+                  >
+                    <ShieldCheck className="w-5 h-5" />
+                    <span>Admin</span>
+                  </Link>
+                  <Link
+                    to="/feed"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      isActive('/feed')
+                        ? 'border-b-2 border-[#FDB913]'
                         : 'hover:bg-[#006B3F]'
                     }`}
                   >
@@ -141,6 +179,9 @@ export default function Navbar() {
                 <Link to="/conversations" className={`p-2 ${isActive('/conversations') ? 'text-[#FDB913]' : ''}`}>
                   <MessageCircle className="w-6 h-6" />
                 </Link>
+                <Link to="/counsellors" className={`p-2 ${isActive('/counsellors') ? 'text-[#FDB913]' : ''}`}>
+                  <Users className="w-6 h-6" />
+                </Link>
                 <Link to="/programmes" className={`p-2 ${isActive('/programmes') ? 'text-[#FDB913]' : ''}`}>
                   <BookOpen className="w-6 h-6" />
                 </Link>
@@ -153,6 +194,19 @@ export default function Navbar() {
               <>
                 <Link to="/counsellor/dashboard" className={`p-2 ${isActive('/counsellor/dashboard') ? 'text-[#FDB913]' : ''}`}>
                   <Home className="w-6 h-6" />
+                </Link>
+                <Link to="/feed" className={`p-2 ${isActive('/feed') ? 'text-[#FDB913]' : ''}`}>
+                  <Users className="w-6 h-6" />
+                </Link>
+                <Link to="/profile" className={`p-2 ${isActive('/profile') ? 'text-[#FDB913]' : ''}`}>
+                  <User className="w-6 h-6" />
+                </Link>
+              </>
+            )}
+            {user.role === 'admin' && (
+              <>
+                <Link to="/admin/dashboard" className={`p-2 ${isActive('/admin/dashboard') ? 'text-[#FDB913]' : ''}`}>
+                  <ShieldCheck className="w-6 h-6" />
                 </Link>
                 <Link to="/feed" className={`p-2 ${isActive('/feed') ? 'text-[#FDB913]' : ''}`}>
                   <Users className="w-6 h-6" />

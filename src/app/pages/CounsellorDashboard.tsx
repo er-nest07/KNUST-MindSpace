@@ -1,13 +1,67 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Users, MessageCircle, AlertTriangle, TrendingUp, BookOpen } from "lucide-react";
-import { mockPosts, mockConversations, mockEnrolments } from "../data/mockData";
 import { Button } from "../components/ui/button";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
+import { type DbConversation } from "../lib/community";
 
 export default function CounsellorDashboard() {
-  const activeCases = mockConversations.filter(c => c.status === 'active').length;
-  const pendingPosts = mockPosts.filter(p => !p.is_private && p.is_approved).length;
-  const crisisFlags = mockPosts.filter(p => p.is_crisis).length;
-  const activeEnrolments = mockEnrolments.filter(e => e.status === 'active').length;
+  const { user } = useAuth();
+  const [activeCases, setActiveCases] = useState(0);
+  const [pendingPosts, setPendingPosts] = useState(0);
+  const [crisisFlags, setCrisisFlags] = useState(0);
+  const [activeEnrolments, setActiveEnrolments] = useState(0);
+  const [activeConversations, setActiveConversations] = useState<DbConversation[]>([]);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      if (!user) return;
+
+      const [
+        { count: casesCount },
+        { count: postsCount },
+        { count: crisisCount },
+        { count: enrolmentCount },
+        { data: conversations },
+      ] = await Promise.all([
+        supabase
+          .from('conversations')
+          .select('id', { head: true, count: 'exact' })
+          .eq('counsellor_id', user.id)
+          .eq('status', 'active'),
+        supabase
+          .from('posts')
+          .select('id', { head: true, count: 'exact' })
+          .eq('is_private', false)
+          .eq('is_approved', true),
+        supabase
+          .from('posts')
+          .select('id', { head: true, count: 'exact' })
+          .eq('is_crisis', true),
+        supabase
+          .from('enrolments')
+          .select('id', { head: true, count: 'exact' })
+          .eq('counsellor_id', user.id)
+          .eq('status', 'active'),
+        supabase
+          .from('conversations')
+          .select('*')
+          .eq('counsellor_id', user.id)
+          .eq('status', 'active')
+          .order('last_message_at', { ascending: false })
+          .limit(5),
+      ]);
+
+      setActiveCases(casesCount ?? 0);
+      setPendingPosts(postsCount ?? 0);
+      setCrisisFlags(crisisCount ?? 0);
+      setActiveEnrolments(enrolmentCount ?? 0);
+      setActiveConversations((conversations ?? []) as DbConversation[]);
+    };
+
+    loadDashboard();
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-[#E8F5EE] py-8 px-4">
@@ -93,7 +147,7 @@ export default function CounsellorDashboard() {
           <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE]">
             <h2 className="font-bold text-[#004D2C] mb-4">Active Conversations</h2>
             <div className="space-y-3">
-              {mockConversations.filter(c => c.status === 'active').slice(0, 5).map((conv) => (
+              {activeConversations.map((conv) => (
                 <Link
                   key={conv.id}
                   to={`/counsellor/case/${conv.student_id}`}
@@ -102,10 +156,10 @@ export default function CounsellorDashboard() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="font-semibold text-[#004D2C]">Student #{conv.student_id.slice(0, 8)}</div>
                     <span className="text-xs text-gray-500">
-                      {new Date(conv.last_message_at).toLocaleDateString()}
+                      {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : 'new'}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{conv.ai_summary}</p>
+                  <p className="text-sm text-gray-600 truncate">{conv.ai_summary || 'No summary yet'}</p>
                 </Link>
               ))}
             </div>

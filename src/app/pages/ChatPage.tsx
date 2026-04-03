@@ -4,19 +4,85 @@ import { ArrowLeft, Send } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../context/AuthContext";
-import { mockMessages, mockConversations, mockCounsellors } from "../data/mockData";
 import CounsellorBadge from "../components/shared/CounsellorBadge";
+import { supabase } from "../lib/supabase";
+import { type DbConversation, type DbMessage, type DbProfile } from "../lib/community";
 
 export default function ChatPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const [messages, setMessages] = useState(mockMessages.filter(m => m.conversation_id === id));
+  const [messages, setMessages] = useState<DbMessage[]>([]);
+  const [conversation, setConversation] = useState<DbConversation | null>(null);
+  const [counsellor, setCounsellor] = useState<DbProfile | null>(null);
   const [newMessage, setNewMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const conversation = mockConversations.find(c => c.id === id);
-  const counsellor = mockCounsellors.find(c => c.id === conversation?.counsellor_id);
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (!id) return;
+
+      setIsLoading(true);
+      setError('');
+
+      const [{ data: conversationData, error: conversationError }, { data: messageData, error: messageError }] = await Promise.all([
+        supabase.from('conversations').select('*').eq('id', id).single<DbConversation>(),
+        supabase.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true }),
+      ]);
+
+      if (conversationError) {
+        setError(conversationError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (messageError) {
+        setError(messageError.message);
+      }
+
+      setConversation(conversationData);
+      setMessages((messageData ?? []) as DbMessage[]);
+
+      if (conversationData?.counsellor_id) {
+        const { data: counsellorData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', conversationData.counsellor_id)
+          .single<DbProfile>();
+        setCounsellor(counsellorData ?? null);
+      }
+
+      setIsLoading(false);
+    };
+
+    loadConversation();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`messages-${id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
+        (payload) => {
+          const incoming = payload.new as DbMessage;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) {
+              return prev;
+            }
+            return [...prev, incoming];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -24,34 +90,30 @@ export default function ChatPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !id) return;
 
-    const message = {
-      id: crypto.randomUUID(),
-      conversation_id: id!,
-      sender_id: user.id,
-      content: newMessage,
-      is_ai: false,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages([...messages, message]);
+    const content = newMessage;
     setNewMessage("");
-    setIsTyping(true);
 
-    // Simulate counsellor response after 2 seconds
-    setTimeout(() => {
-      const response = {
-        id: crypto.randomUUID(),
-        conversation_id: id!,
-        sender_id: counsellor?.id || 'counsellor-1',
-        content: "Thank you for sharing that. I hear what you're saying. Let's work through this together. How are you feeling right now in this moment?",
-        is_ai: false,
-        created_at: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, response]);
-      setIsTyping(false);
-    }, 2000);
+    const { error: insertError } = await supabase.from('messages').insert({
+      conversation_id: id,
+      sender_id: user.id,
+      content,
+      is_ai: false,
+    });
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+
+    await supabase
+      .from('conversations')
+      .update({
+        last_message: content,
+        last_message_at: new Date().toISOString(),
+      })
+      .eq('id', id);
   };
 
   return (
@@ -75,6 +137,12 @@ export default function ChatPage() {
 
         {/* Messages */}
         <div className="p-4 space-y-4 pb-24">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          {isLoading && <p className="text-gray-600">Loading chat...</p>}
           {messages.map((message) => {
             const isUser = message.sender_id === user?.id;
             const isAI = message.is_ai;
@@ -112,18 +180,6 @@ export default function ChatPage() {
               </div>
             );
           })}
-
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div ref={messagesEndRef} />
         </div>

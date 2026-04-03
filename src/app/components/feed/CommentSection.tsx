@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, Flag, ThumbsUp } from "lucide-react";
 import AnonymousAvatar from "../shared/AnonymousAvatar";
 import CounsellorBadge from "../shared/CounsellorBadge";
@@ -22,38 +22,50 @@ interface Comment {
 interface CommentSectionProps {
   postId: string;
   comments: Comment[];
+  onSubmitComment?: (content: string) => Promise<Comment | null>;
 }
 
-export default function CommentSection({ postId, comments: initialComments }: CommentSectionProps) {
+export default function CommentSection({ postId, comments: initialComments, onSubmitComment }: CommentSectionProps) {
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setComments(initialComments);
+  }, [initialComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const comment: Comment = {
-      id: `comment-${Date.now()}`,
-      content: newComment,
-      author: {
-        id: 'current-user',
-        displayName: 'Anonymous Student',
-        isAnonymous: true,
-        isCounsellor: false
-      },
-      upvotes: 0,
-      createdAt: new Date().toISOString()
-    };
-    
-    setComments([...comments, comment]);
-    setNewComment('');
-    setIsSubmitting(false);
+
+    try {
+      if (onSubmitComment) {
+        const persistedComment = await onSubmitComment(newComment);
+        if (persistedComment) {
+          setComments([...comments, persistedComment]);
+        }
+      } else {
+        const comment: Comment = {
+          id: `comment-${Date.now()}`,
+          content: newComment,
+          author: {
+            id: `local-${postId}`,
+            displayName: 'Anonymous Student',
+            isAnonymous: true,
+            isCounsellor: false
+          },
+          upvotes: 0,
+          createdAt: new Date().toISOString()
+        };
+        setComments([...comments, comment]);
+      }
+
+      setNewComment('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatTimeAgo = (dateString: string) => {

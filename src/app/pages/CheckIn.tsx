@@ -1,19 +1,48 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import { ArrowLeft, Send, Heart } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
-import { mockEnrolments, mockProgrammes } from "../data/mockData";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
+import { type DbEnrolment, type DbProgramme } from "../lib/community";
 
 export default function CheckIn() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [responses, setResponses] = useState<string[]>(['', '', '']);
   const [moodScore, setMoodScore] = useState(5);
+  const [enrolment, setEnrolment] = useState<DbEnrolment | null>(null);
+  const [programme, setProgramme] = useState<DbProgramme | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const enrolment = mockEnrolments.find(e => e.id === id);
-  const programme = mockProgrammes.find(p => p.id === enrolment?.programme_id);
+  useEffect(() => {
+    const loadCheckInContext = async () => {
+      if (!id) return;
+
+      const { data: enrolmentRow } = await supabase
+        .from('enrolments')
+        .select('*')
+        .eq('id', id)
+        .single<DbEnrolment>();
+
+      if (!enrolmentRow) return;
+
+      setEnrolment(enrolmentRow);
+
+      const { data: programmeRow } = await supabase
+        .from('programmes')
+        .select('*')
+        .eq('id', enrolmentRow.programme_id)
+        .single<DbProgramme>();
+
+      setProgramme(programmeRow ?? null);
+    };
+
+    loadCheckInContext();
+  }, [id]);
 
   const questions = [
     "How are you feeling today? Tell me about your day.",
@@ -21,11 +50,30 @@ export default function CheckIn() {
     "On a scale of 1-10, how would you rate your current mood?"
   ];
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // Submit check-in
+      if (!enrolment || !user) {
+        return;
+      }
+
+      setIsSaving(true);
+
+      await supabase.from('checkins').insert({
+        enrolment_id: enrolment.id,
+        student_id: user.id,
+        response_one: responses[0],
+        response_two: responses[1],
+        mood_score: moodScore,
+      });
+
+      await supabase
+        .from('enrolments')
+        .update({ progress: Math.min(enrolment.progress + 1, enrolment.total_days) })
+        .eq('id', enrolment.id);
+
+      setIsSaving(false);
       navigate('/programmes');
     }
   };
@@ -117,9 +165,10 @@ export default function CheckIn() {
 
               <Button
                 onClick={handleNext}
+                disabled={isSaving}
                 className="w-full bg-[#006B3F] hover:bg-[#004D2C] text-white"
               >
-                Complete Check-In
+                {isSaving ? 'Saving...' : 'Complete Check-In'}
                 <Heart className="w-4 h-4 ml-2" />
               </Button>
             </div>

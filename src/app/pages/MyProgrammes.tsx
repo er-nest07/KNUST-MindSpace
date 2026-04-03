@@ -1,15 +1,57 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { BookOpen, Calendar, TrendingUp, CheckCircle, Clock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { mockEnrolments, mockProgrammes, mockCounsellors } from "../data/mockData";
 import CounsellorBadge from "../components/shared/CounsellorBadge";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
+import { supabase } from "../lib/supabase";
+import { type DbEnrolment, type DbProgramme, type DbProfile } from "../lib/community";
 
 export default function MyProgrammes() {
   const { user } = useAuth();
+  const [enrolments, setEnrolments] = useState<DbEnrolment[]>([]);
+  const [programmes, setProgrammes] = useState<DbProgramme[]>([]);
+  const [counsellors, setCounsellors] = useState<Map<string, DbProfile>>(new Map());
+  const [isLoading, setIsLoading] = useState(true);
 
-  const enrolments = mockEnrolments.filter(e => e.student_id === user?.id || e.student_id === 'current-student');
+  useEffect(() => {
+    const loadProgrammes = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      const [{ data: enrolmentRows }, { data: programmeRows }] = await Promise.all([
+        supabase.from('enrolments').select('*').eq('student_id', user.id),
+        supabase.from('programmes').select('*').order('name', { ascending: true }),
+      ]);
+
+      const loadedEnrolments = (enrolmentRows ?? []) as DbEnrolment[];
+      setEnrolments(loadedEnrolments);
+      setProgrammes((programmeRows ?? []) as DbProgramme[]);
+
+      const counsellorIds = [...new Set(loadedEnrolments.map((enrolment) => enrolment.counsellor_id))];
+      if (counsellorIds.length > 0) {
+        const { data: counsellorRows } = await supabase.from('profiles').select('*').in('id', counsellorIds);
+        const map = new Map<string, DbProfile>();
+        ((counsellorRows ?? []) as DbProfile[]).forEach((row) => map.set(row.id, row));
+        setCounsellors(map);
+      } else {
+        setCounsellors(new Map());
+      }
+
+      setIsLoading(false);
+    };
+
+    loadProgrammes();
+  }, [user?.id]);
+
+  const activeEnrolments = useMemo(
+    () => enrolments.filter((enrolment) => enrolment.status === 'active'),
+    [enrolments],
+  );
 
   return (
     <div className="min-h-screen bg-[#E8F5EE] py-8 px-4">
@@ -23,13 +65,13 @@ export default function MyProgrammes() {
         </div>
 
         {/* Active Programmes */}
-        {enrolments.length > 0 && (
+        {activeEnrolments.length > 0 && (
           <div className="mb-12">
             <h2 className="text-xl font-bold text-[#004D2C] mb-4">Active Programmes</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {enrolments.map((enrolment) => {
-                const programme = mockProgrammes.find(p => p.id === enrolment.programme_id);
-                const counsellor = mockCounsellors.find(c => c.id === enrolment.counsellor_id);
+              {activeEnrolments.map((enrolment) => {
+                const programme = programmes.find(p => p.id === enrolment.programme_id);
+                const counsellor = counsellors.get(enrolment.counsellor_id);
                 const progressPercent = (enrolment.progress / enrolment.total_days) * 100;
 
                 return (
@@ -81,10 +123,10 @@ export default function MyProgrammes() {
         {/* Available Programmes */}
         <div>
           <h2 className="text-xl font-bold text-[#004D2C] mb-4">
-            {enrolments.length > 0 ? 'More Programmes' : 'Available Programmes'}
+            {activeEnrolments.length > 0 ? 'More Programmes' : 'Available Programmes'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockProgrammes.map((programme) => {
+            {programmes.map((programme) => {
               const isEnrolled = enrolments.some(e => e.programme_id === programme.id);
 
               return (
@@ -129,7 +171,13 @@ export default function MyProgrammes() {
           </div>
         </div>
 
-        {enrolments.length === 0 && (
+        {isLoading && (
+          <div className="mt-8 rounded-xl border border-[#E8F5EE] bg-white p-8 text-center text-gray-600">
+            Loading programmes...
+          </div>
+        )}
+
+        {!isLoading && activeEnrolments.length === 0 && (
           <div className="mt-8 bg-white rounded-xl p-8 border-l-4 border-[#FDB913]">
             <h3 className="font-bold text-[#004D2C] mb-2">Get Started with a Programme</h3>
             <p className="text-sm text-gray-600 mb-4">

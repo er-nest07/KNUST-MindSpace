@@ -11,6 +11,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
@@ -21,13 +22,17 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setError('');
     
     try {
       await login(formData.email, formData.password);
       navigate('/feed');
     } catch (err) {
-      setError('Invalid email or password');
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -44,6 +49,20 @@ export default function Login() {
                 <p className="text-sm text-gray-700 mt-1">
                   Your counsellor account is under review. You'll receive an email once approved 
                   by KNUST's Counselling Unit (typically within 2-3 business days).
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {message === 'check-email' && (
+          <div className="bg-[#EFF6FF] border-l-4 border-[#2563EB] p-4 rounded mb-6">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-[#004D2C]">Check Your Email</p>
+                <p className="text-sm text-gray-700 mt-1">
+                  Your account was created. If email confirmation is enabled in Supabase, please verify your email before logging in.
                 </p>
               </div>
             </div>
@@ -109,9 +128,10 @@ export default function Login() {
 
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-[#006B3F] hover:bg-[#004D2C] text-white py-6"
             >
-              Log In
+              {isSubmitting ? 'Logging in...' : 'Log In'}
             </Button>
           </form>
 

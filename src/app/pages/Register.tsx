@@ -12,6 +12,7 @@ export default function Register() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { register } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [role, setRole] = useState<'student' | 'counsellor'>(
     (searchParams.get('role') as 'student' | 'counsellor') || 'student'
   );
@@ -44,22 +45,37 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     
     if (formData.password !== formData.confirmPassword) {
       alert('Passwords do not match');
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      await register(
+      const result = await register(
         formData.email,
         formData.password,
         role,
-        visibility,
-        formData.pseudonym
+        {
+          visibility,
+          pseudonym: formData.pseudonym,
+          displayName: formData.displayName,
+          counsellorTitle: formData.counsellorTitle,
+          counsellorBio: formData.counsellorTitle
+            ? `${formData.counsellorTitle} at KNUST Counselling Unit`
+            : undefined,
+        }
       );
-      
-      if (role === 'student') {
+
+        if (!result.signedIn) {
+          navigate('/login?message=check-email');
+          return;
+        }
+
+        if (role === 'student') {
         navigate('/feed');
       } else {
         // Counsellor would need approval
@@ -67,7 +83,17 @@ export default function Register() {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
+
+      const message = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+
+      if (message.toLowerCase().includes('rate limit')) {
+        alert('Supabase rate limited signup attempts. Wait a minute, then try again, or disable email confirmation in Supabase Auth for instant local signup.');
+        return;
+      }
+
+      alert(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -165,8 +191,9 @@ export default function Register() {
               <div className="space-y-4 pt-4 border-t border-gray-200">
                 <div>
                   <Label className="text-base font-bold text-[#004D2C] mb-3 block">
-                    Choose Your Visibility
+                    Choose How You Appear
                   </Label>
+                  <p className="text-sm text-gray-600 mb-4">Anonymous, Nickname, or Real Name.</p>
                   <div className="space-y-3">
                     <label className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
                       visibility === 'anonymous' ? 'border-[#006B3F] bg-[#E8F5EE]' : 'border-gray-200 hover:border-gray-300'
@@ -324,10 +351,10 @@ export default function Register() {
             {/* Submit Button */}
             <Button
               type="submit"
-              disabled={!agreedToGuidelines}
+              disabled={!agreedToGuidelines || isSubmitting}
               className="w-full bg-[#006B3F] hover:bg-[#004D2C] text-white py-6"
             >
-              {role === 'student' ? 'Create Account' : 'Submit for Verification'}
+              {isSubmitting ? 'Submitting...' : role === 'student' ? 'Create Account' : 'Submit for Verification'}
             </Button>
           </form>
 
