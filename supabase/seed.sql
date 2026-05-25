@@ -37,7 +37,8 @@ insert into public.programmes (id, name, description, duration_days, checkin_fre
 values
   ('20000000-0000-0000-0000-000000000001', 'Exam Stress Reset', 'Two-week support track for exam anxiety and study pressure.', 14, 'daily'),
   ('20000000-0000-0000-0000-000000000002', 'Grief and Loss Support', 'Compassionate guided support while processing loss.', 60, 'every 2 days'),
-  ('20000000-0000-0000-0000-000000000003', 'Sleep and Recovery', 'Build practical sleep hygiene habits with check-ins.', 21, 'daily')
+  ('20000000-0000-0000-0000-000000000003', 'Sleep and Recovery', 'Build practical sleep hygiene habits with check-ins.', 21, 'daily'),
+  ('20000000-0000-0000-0000-000000000004', '6-Week Student Resilience', 'A guided resilience course that builds stress awareness, emotional regulation, and healthy coping habits.', 42, 'weekly')
 on conflict (id) do nothing;
 
 insert into public.conversations (

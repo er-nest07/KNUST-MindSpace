@@ -11,6 +11,8 @@ import MyProgrammes from "./pages/MyProgrammes";
 import CheckIn from "./pages/CheckIn";
 import CounsellorDashboard from "./pages/CounsellorDashboard";
 import CounsellorCaseDetail from "./pages/CounsellorCaseDetail";
+import CounsellorCreateProgramme from "./pages/CounsellorCreateProgramme";
+import ResilienceCourse from "./pages/ResilienceCourse";
 import Profile from "./pages/Profile";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
 import Crisis from "./pages/Crisis";
@@ -40,6 +42,8 @@ export const router = createBrowserRouter([
           { path: "counsellors", Component: BrowseCounsellors },
           { path: "chat/:id", Component: ChatPage },
           { path: "programmes", Component: MyProgrammes },
+          { path: "programmes/resilience", Component: ResilienceCourse },
+          { path: "programmes/resilience/:week", Component: ResilienceCourse },
           { path: "checkin/:id", Component: CheckIn },
           { path: "profile", Component: Profile },
         ],
@@ -49,6 +53,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "counsellor/dashboard", Component: CounsellorDashboard },
           { path: "counsellor/case/:id", Component: CounsellorCaseDetail },
+          { path: "counsellor/programmes/new", Component: CounsellorCreateProgramme },
         ],
       },
       {

@@ -377,6 +377,40 @@ for select
 to authenticated
 using (true);
 
+create policy "counsellors and admins create programmes"
+on public.programmes
+for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('counsellor', 'admin')
+  )
+);
+
+create policy "counsellors and admins update programmes"
+on public.programmes
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('counsellor', 'admin')
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('counsellor', 'admin')
+  )
+);
+
 -- Conversations
 create policy "participants can read conversations"
 on public.conversations

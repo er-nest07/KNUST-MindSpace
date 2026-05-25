@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { type DbConversation } from "../lib/community";
+import CounsellorCourseManager from "@/components/dashboard/CounsellorCourseManager";
 
 export default function CounsellorDashboard() {
   const { user } = useAuth();
@@ -163,9 +164,11 @@ export default function CounsellorDashboard() {
                 </Link>
               ))}
             </div>
-            <Button variant="outline" className="w-full mt-4">
-              View All Cases
-            </Button>
+            <Link to="/conversations">
+              <Button variant="outline" className="w-full mt-4">
+                View All Cases
+              </Button>
+            </Link>
           </div>
 
           {/* Community Trends */}
@@ -211,25 +214,28 @@ export default function CounsellorDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Navigation */}
         <div className="mt-8 bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE]">
-          <h2 className="font-bold text-[#004D2C] mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link to="/feed">
+          <h2 className="font-bold text-[#004D2C] mb-4">Quick Navigation</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="#course-management" className="block">
               <Button className="w-full bg-[#006B3F] hover:bg-[#004D2C] text-white">
-                <MessageCircle className="w-5 h-5 mr-2" />
-                View Community Feed
+                <BookOpen className="w-5 h-5 mr-2" />
+                Jump to Course Management
+              </Button>
+            </a>
+            <Link to="/counsellor/programmes/new">
+              <Button variant="outline" className="w-full">
+                <BookOpen className="w-5 h-5 mr-2" />
+                Create Programme
               </Button>
             </Link>
-            <Button variant="outline" className="w-full">
-              <Users className="w-5 h-5 mr-2" />
-              Browse All Cases
-            </Button>
-            <Button variant="outline" className="w-full">
-              <BookOpen className="w-5 h-5 mr-2" />
-              Create Programme
-            </Button>
           </div>
+        </div>
+
+        {/* Course Management */}
+        <div className="mt-8" id="course-management">
+          <CounsellorCourseManager />
         </div>
       </div>
     </div>

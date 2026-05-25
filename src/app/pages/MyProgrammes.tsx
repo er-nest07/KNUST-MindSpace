@@ -125,6 +125,29 @@ export default function MyProgrammes() {
           <h2 className="text-xl font-bold text-[#004D2C] mb-4">
             {activeEnrolments.length > 0 ? 'More Programmes' : 'Available Programmes'}
           </h2>
+          <div className="mb-6 rounded-xl border border-[#E8F5EE] bg-white p-6 shadow-md">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="w-5 h-5 text-[#006B3F]" />
+                  <h3 className="font-bold text-[#004D2C]">6-Week Student Resilience</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  A guided resilience course with a locked week-by-week path. Week 1 is interactive, and later weeks unlock as you progress.
+                </p>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>6 weeks</span>
+                  <span>•</span>
+                  <span>Open from the course path</span>
+                </div>
+              </div>
+              <Link to="/programmes/resilience">
+                <Button className="bg-[#006B3F] hover:bg-[#004D2C] text-white">
+                  Open Course Path
+                </Button>
+              </Link>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {programmes.map((programme) => {
               const isEnrolled = enrolments.some(e => e.programme_id === programme.id);
