@@ -52,6 +52,7 @@ export const router = createBrowserRouter([
         Component: CounsellorOnly,
         children: [
           { path: "counsellor/dashboard", Component: CounsellorDashboard },
+          { path: "counsellor/conversations", Component: MyConversations },
           { path: "counsellor/case/:id", Component: CounsellorCaseDetail },
           { path: "counsellor/programmes/new", Component: CounsellorCreateProgramme },
         ],

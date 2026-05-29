@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 import AnonymousAvatar from "../shared/AnonymousAvatar";
@@ -23,7 +23,6 @@ export default function CommentSection({ postId }: { postId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
-  // Load comments
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -38,7 +37,6 @@ export default function CommentSection({ postId }: { postId: string }) {
     load();
   }, [postId]);
 
-  // Realtime — new comments appear instantly
   useEffect(() => {
     const channel = supabase
       .channel(`comments-${postId}`)
@@ -51,7 +49,30 @@ export default function CommentSection({ postId }: { postId: string }) {
             .select("*, profiles(display_name, is_anonymous, avatar_url)")
             .eq("id", payload.new.id)
             .single();
-          if (data) setComments((prev) => [...prev, data as Comment]);
+          if (data) {
+            const incoming = data as Comment;
+            setComments((prev) => {
+              // Replace matching optimistic placeholder to avoid duplicates
+              const withoutOptimistic = prev.filter(
+                (c) =>
+                  !(
+                    c.id.startsWith("opt-") &&
+                    c.content === incoming.content &&
+                    c.author_id === incoming.author_id
+                  )
+              );
+              // Deduplicate in case event fires more than once
+              if (withoutOptimistic.some((c) => c.id === incoming.id)) return withoutOptimistic;
+              return [...withoutOptimistic, incoming];
+            });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
+        (payload) => {
+          setComments((prev) => prev.filter((c) => c.id !== payload.old.id));
         }
       )
       .subscribe();
@@ -64,7 +85,6 @@ export default function CommentSection({ postId }: { postId: string }) {
     setIsSending(true);
     setText("");
 
-    // Optimistic
     const optimistic: Comment = {
       id: `opt-${Date.now()}`,
       content,
@@ -79,10 +99,35 @@ export default function CommentSection({ postId }: { postId: string }) {
       .insert({ post_id: postId, author_id: user.id, content });
 
     if (error) {
+      // Remove optimistic and restore text on failure
       setComments((prev) => prev.filter((c) => c.id !== optimistic.id));
       setText(content);
     }
     setIsSending(false);
+  };
+
+  const handleDelete = async (commentId: string) => {
+    // Optimistic removal
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    const { error } = await supabase.from("comments").delete().eq("id", commentId);
+    if (error) {
+      // Re-fetch to restore if delete failed (e.g. insufficient permissions)
+      const { data } = await supabase
+        .from("comments")
+        .select("*, profiles(display_name, is_anonymous, avatar_url)")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true });
+      setComments((data ?? []) as Comment[]);
+    }
+  };
+
+  const canDelete = (comment: Comment): boolean => {
+    if (!user || comment.id.startsWith("opt-")) return false;
+    return (
+      user.id === comment.author_id ||
+      user.role === "admin" ||
+      user.role === "counsellor"
+    );
   };
 
   const formatTime = (iso: string) =>
@@ -106,7 +151,7 @@ export default function CommentSection({ postId }: { postId: string }) {
         const isOptimistic = c.id.startsWith("opt-");
 
         return (
-          <div key={c.id} className={`flex gap-2 ${isOptimistic ? "opacity-60" : ""}`}>
+          <div key={c.id} className={`flex gap-2 group ${isOptimistic ? "opacity-60" : ""}`}>
             {isAnon ? (
               <AnonymousAvatar seed={c.author_id} size={28} />
             ) : (
@@ -115,20 +160,33 @@ export default function CommentSection({ postId }: { postId: string }) {
                 {name[0]?.toUpperCase()}
               </div>
             )}
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs font-semibold text-[#004D2C]">{name}</span>
-                <span className="text-xs text-gray-400">
-                  {isOptimistic ? "Sending..." : formatTime(c.created_at)}
-                </span>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <span className="text-xs font-semibold text-[#004D2C] truncate">{name}</span>
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    {isOptimistic ? "Sending…" : formatTime(c.created_at)}
+                  </span>
+                </div>
+                {canDelete(c) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(c.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity
+                               text-gray-400 hover:text-red-500 flex-shrink-0 p-0.5 rounded"
+                    aria-label="Delete comment"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
               </div>
-              <p className="text-sm text-gray-700 mt-0.5 leading-relaxed">{c.content}</p>
+              <p className="text-sm text-gray-700 mt-0.5 leading-relaxed break-words">{c.content}</p>
             </div>
           </div>
         );
       })}
 
-      {/* Input row */}
       {user && (
         <div className="flex gap-2 items-end pt-1">
           <textarea
@@ -137,7 +195,7 @@ export default function CommentSection({ postId }: { postId: string }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
             }}
-            placeholder="Write a comment..."
+            placeholder="Write a comment…"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50
                        px-3 py-2 text-sm text-gray-800 placeholder-gray-400
@@ -146,6 +204,7 @@ export default function CommentSection({ postId }: { postId: string }) {
             style={{ minHeight: 36 }}
           />
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={!text.trim() || isSending}
             className="w-9 h-9 rounded-full bg-[#006B3F] text-white flex items-center justify-center

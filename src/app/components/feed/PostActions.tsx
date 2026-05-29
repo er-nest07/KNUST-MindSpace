@@ -1,15 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Heart, MessageCircle, Bookmark, Share2, Check } from "lucide-react";
 import { toast } from "sonner";
+
+const SAVED_KEY = "mindspace_saved_posts";
+
+function readSaved(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSaved(ids: Set<string>) {
+  localStorage.setItem(SAVED_KEY, JSON.stringify([...ids]));
+}
 
 interface PostActionsProps {
   postId: string;
   initialLikes?: number;
   initialComments?: number;
   initialLiked?: boolean;
-  initialSaved?: boolean;
   onLike?: (postId: string, nowLiked: boolean) => void;
-  onSave?: (postId: string, nowSaved: boolean) => void;
   onCommentToggle?: () => void;
 }
 
@@ -18,18 +31,22 @@ export default function PostActions({
   initialLikes = 0,
   initialComments = 0,
   initialLiked = false,
-  initialSaved = false,
   onLike,
-  onSave,
   onCommentToggle,
 }: PostActionsProps) {
-  const [isLiked, setIsLiked]         = useState(initialLiked);
-  const [isSaved, setIsSaved]         = useState(initialSaved);
-  const [likeCount, setLikeCount]     = useState(initialLikes);
-  const [likeAnim, setLikeAnim]       = useState(false);
-  const [saveAnim, setSaveAnim]       = useState(false);
-  const [shareDone, setShareDone]     = useState(false);
+  const [isLiked, setIsLiked]     = useState(initialLiked);
+  const [likeCount, setLikeCount] = useState(initialLikes);
+  const [isSaved, setIsSaved]     = useState(() => readSaved().has(postId));
+  const [likeAnim, setLikeAnim]   = useState(false);
+  const [saveAnim, setSaveAnim]   = useState(false);
+  const [shareDone, setShareDone] = useState(false);
   const [floatingHearts, setFloatingHearts] = useState<number[]>([]);
+
+  // Sync from parent whenever loadFeed() updates the post data
+  useEffect(() => {
+    setIsLiked(initialLiked);
+    setLikeCount(initialLikes);
+  }, [initialLiked, initialLikes]);
 
   const KNUST_GREEN = "#006B3F";
   const KNUST_GOLD  = "#FDB913";
@@ -53,15 +70,19 @@ export default function PostActions({
     setIsSaved(nowSaved);
     setSaveAnim(true);
     setTimeout(() => setSaveAnim(false), 300);
+    const saved = readSaved();
+    if (nowSaved) {
+      saved.add(postId);
+    } else {
+      saved.delete(postId);
+    }
+    writeSaved(saved);
     toast.success(nowSaved ? "Post saved!" : "Post unsaved");
-    onSave?.(postId, nowSaved);
   };
 
-  // Share — works on both http and https
   const handleShare = () => {
     const url = `${window.location.origin}/post/${postId}`;
     const doCopy = (text: string) => {
-      // Modern API (HTTPS / production)
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(() => {
           setShareDone(true);
@@ -70,7 +91,6 @@ export default function PostActions({
         });
         return;
       }
-      // Fallback for http://localhost
       const el = document.createElement("textarea");
       el.value = text;
       el.style.cssText = "position:fixed;left:-9999px;top:-9999px";
@@ -87,8 +107,6 @@ export default function PostActions({
       }
       document.body.removeChild(el);
     };
-
-    // Use Web Share API on mobile if available
     if (navigator.share) {
       navigator.share({ title: "MindSpace Post", url }).catch(() => doCopy(url));
     } else {
@@ -138,12 +156,12 @@ export default function PostActions({
               fill: isSaved ? KNUST_GOLD : "none",
               color: isSaved ? KNUST_GOLD : "currentColor",
             }} />
-          <span>Save</span>
+          <span>{isSaved ? "Saved" : "Save"}</span>
         </button>
 
         <div className="flex-1" />
 
-        {/* Share — shows checkmark for 2s after copying */}
+        {/* Share */}
         <button type="button" onClick={handleShare}
           className={`${btnBase} ${shareDone ? "" : "text-gray-500 hover:bg-gray-100"}`}
           style={shareDone ? { color: KNUST_GREEN, background: "#E8F5EE" } : {}}>

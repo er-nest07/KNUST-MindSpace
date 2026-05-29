@@ -180,10 +180,19 @@ export default function Feed() {
     await loadFeed();
   };
 
-  const toggleLike = async (postId: string, isLiked: boolean) => {
+  const toggleLike = async (postId: string, nowLiked: boolean) => {
     if (!user) return;
 
-    if (isLiked) {
+    if (nowLiked) {
+      const { error: insertError } = await supabase
+        .from('post_votes')
+        .insert({ post_id: postId, user_id: user.id });
+
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+    } else {
       const { error: deleteError } = await supabase
         .from('post_votes')
         .delete()
@@ -192,15 +201,6 @@ export default function Feed() {
 
       if (deleteError) {
         setError(deleteError.message);
-        return;
-      }
-    } else {
-      const { error: insertError } = await supabase
-        .from('post_votes')
-        .insert({ post_id: postId, user_id: user.id });
-
-      if (insertError) {
-        setError(insertError.message);
         return;
       }
     }

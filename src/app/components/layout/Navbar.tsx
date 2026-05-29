@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, isAuthLoading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -42,7 +42,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     setProfileOpen(false);
-    await signOut();
+    await logout();
     navigate("/login");
   };
 
@@ -54,7 +54,7 @@ export default function Navbar() {
   ];
   const counsellorLinks = [
     { label: "Dashboard",     to: "/counsellor/dashboard",      icon: ShieldCheck },
-    { label: "Conversations", to: "/counsellor/conversations",  icon: MessageCircle },
+    { label: "Conversations", to: "/conversations",  icon: MessageCircle },
     { label: "Feed",          to: "/feed",                      icon: Home },
   ];
   const adminLinks = [
@@ -94,7 +94,7 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop nav links */}
-            {user && (
+            {!isAuthLoading && user && (
               <div className="hidden md:flex items-center gap-1">
                 {links.map(({ label, to, icon: Icon }) => (
                   <Link key={to} to={to}
@@ -112,7 +112,7 @@ export default function Navbar() {
 
             {/* Right side */}
             <div className="hidden md:flex items-center gap-3">
-              {user ? (
+              {isAuthLoading ? null : user ? (
                 <>
                   {/* Crisis Help */}
                   <Link to="/crisis"
@@ -210,7 +210,7 @@ export default function Navbar() {
         {menuOpen && (
           <div className={`md:hidden border-t px-4 py-3 space-y-1
             ${scrolled ? "border-gray-200/50 bg-white/80 backdrop-blur-md rounded-b-2xl" : "border-gray-100 bg-white"}`}>
-            {user && links.map(({ label, to, icon: Icon }) => (
+            {!isAuthLoading && user && links.map(({ label, to, icon: Icon }) => (
               <Link key={to} to={to} onClick={() => setMenuOpen(false)}
                 className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
                   ${isActive(to) ? "bg-[#006B3F] text-white" : "text-gray-600 hover:bg-gray-50 hover:text-[#006B3F]"}`}>
@@ -218,7 +218,7 @@ export default function Navbar() {
                 {label}
               </Link>
             ))}
-            {user && (
+            {!isAuthLoading && user && (
               <Link to="/crisis" onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold bg-red-500 text-white mt-2">
                 <AlertCircle className="w-4 h-4" />
@@ -226,7 +226,7 @@ export default function Navbar() {
               </Link>
             )}
             <div className="pt-2 border-t border-gray-100 mt-2">
-              {user ? (
+              {isAuthLoading ? null : user ? (
                 <>
                   <div className="flex items-center gap-3 px-4 py-2 mb-1">
                     <div className="w-8 h-8 rounded-full bg-[#006B3F] flex items-center justify-center text-white text-sm font-bold">
