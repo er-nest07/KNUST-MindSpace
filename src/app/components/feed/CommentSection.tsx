@@ -10,9 +10,9 @@ interface Comment {
   created_at: string;
   author_id: string;
   profiles?: {
-    display_name: string;
-    is_anonymous: boolean;
-    avatar_url?: string;
+    display_name: string | null;
+    visibility: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -28,7 +28,7 @@ export default function CommentSection({ postId }: { postId: string }) {
       setIsLoading(true);
       const { data } = await supabase
         .from("comments")
-        .select("*, profiles(display_name, is_anonymous, avatar_url)")
+        .select("*, profiles(display_name, visibility, avatar_url)")
         .eq("post_id", postId)
         .order("created_at", { ascending: true });
       setComments((data ?? []) as Comment[]);
@@ -46,7 +46,7 @@ export default function CommentSection({ postId }: { postId: string }) {
         async (payload) => {
           const { data } = await supabase
             .from("comments")
-            .select("*, profiles(display_name, is_anonymous, avatar_url)")
+            .select("*, profiles(display_name, visibility, avatar_url)")
             .eq("id", payload.new.id)
             .single();
           if (data) {
@@ -90,7 +90,7 @@ export default function CommentSection({ postId }: { postId: string }) {
       content,
       created_at: new Date().toISOString(),
       author_id: user.id,
-      profiles: { display_name: "You", is_anonymous: false },
+      profiles: { display_name: "You", visibility: "identified" },
     };
     setComments((prev) => [...prev, optimistic]);
 
@@ -99,10 +99,20 @@ export default function CommentSection({ postId }: { postId: string }) {
       .insert({ post_id: postId, author_id: user.id, content });
 
     if (error) {
-      // Remove optimistic and restore text on failure
       setComments((prev) => prev.filter((c) => c.id !== optimistic.id));
       setText(content);
+      setIsSending(false);
+      return;
     }
+
+    // Re-fetch to replace the optimistic entry with real DB data.
+    // This works even when Supabase Realtime is not enabled.
+    const { data } = await supabase
+      .from("comments")
+      .select("*, profiles(display_name, visibility, avatar_url)")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+    setComments((data ?? []) as Comment[]);
     setIsSending(false);
   };
 
@@ -114,7 +124,7 @@ export default function CommentSection({ postId }: { postId: string }) {
       // Re-fetch to restore if delete failed (e.g. insufficient permissions)
       const { data } = await supabase
         .from("comments")
-        .select("*, profiles(display_name, is_anonymous, avatar_url)")
+        .select("*, profiles(display_name, visibility, avatar_url)")
         .eq("post_id", postId)
         .order("created_at", { ascending: true });
       setComments((data ?? []) as Comment[]);
@@ -146,7 +156,7 @@ export default function CommentSection({ postId }: { postId: string }) {
       )}
 
       {comments.map((c) => {
-        const isAnon = c.profiles?.is_anonymous ?? true;
+        const isAnon = (c.profiles?.visibility ?? "anonymous") === "anonymous";
         const name   = c.profiles?.display_name ?? "Anonymous";
         const isOptimistic = c.id.startsWith("opt-");
 

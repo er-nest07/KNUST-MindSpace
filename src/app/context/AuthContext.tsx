@@ -115,8 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setIsAuthLoading(false);
-      void syncUserProfile(sessionUser);
+        void syncUserProfile(sessionUser);
     });
 
     return () => {
