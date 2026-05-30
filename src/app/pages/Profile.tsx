@@ -5,15 +5,42 @@ import { Button } from "../components/ui/button";
 import { useNavigate } from "react-router";
 import CounsellorBadge from "../components/shared/CounsellorBadge";
 import AnonymousAvatar from "../components/shared/AnonymousAvatar";
+import { useState } from "react";
+import { Input } from "../components/ui/input";
+import { supabase } from "../lib/supabase";
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [phone, setPhone] = useState(user.phone || "");
+  const [saving, setSaving] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
+
+  const handleSavePhone = async () => {
+  try {
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        phone_number: phone,
+      })
+      .eq("id", user.id);
+
+    if (error) throw error;
+
+    alert("Phone number saved successfully!");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save phone number");
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (!user) {
     return null;
@@ -107,6 +134,28 @@ export default function Profile() {
                 <span className="font-semibold text-[#004D2C] capitalize">{user.visibility}</span>
               </div>
             )}
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] mb-6">
+          <h3 className="font-bold text-[#004D2C] mb-4">
+            WhatsApp Notifications
+          </h3>
+
+          <div className="space-y-4">
+            <Input
+              type="tel"
+              placeholder="+233XXXXXXXXX"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+
+            <Button
+              onClick={handleSavePhone}
+              disabled={saving}
+              className="bg-[#006B3F] hover:bg-[#005533]"
+            >
+              {saving ? "Saving..." : "Save Number"}
+            </Button>
           </div>
         </div>
 
