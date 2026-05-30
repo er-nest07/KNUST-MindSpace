@@ -10,9 +10,31 @@ import CounsellorBadge from "../components/shared/CounsellorBadge";
 import AnonymousAvatar from "../components/shared/AnonymousAvatar";
 import { Input } from "../components/ui/input";
 import { supabase } from "../lib/supabase";
+import { type DbPost } from "../lib/community";
+
+const TOPIC_COLORS: Record<string, string> = {
+  stress: "bg-orange-100 text-orange-700",
+  academic: "bg-blue-100 text-blue-700",
+  relationships: "bg-pink-100 text-pink-700",
+  grief: "bg-purple-100 text-purple-700",
+  addiction: "bg-red-100 text-red-700",
+  identity: "bg-yellow-100 text-yellow-700",
+  trauma: "bg-rose-100 text-rose-700",
+  other: "bg-gray-100 text-gray-600",
+};
+
+function TopicTag({ topic }: { topic: string }) {
+  const colors = TOPIC_COLORS[topic] ?? "bg-gray-100 text-gray-600";
+  return (
+    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${colors}`}>
+      {topic}
+    </span>
+  );
+}
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user: rawUser, logout } = useAuth();
+  const user = rawUser as typeof rawUser & { phone_number?: string | null };
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -23,7 +45,7 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState("profile");
   const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [savedLoading, setSavedLoading] = useState(false);
-  const [phone, setPhone] = useState(user.phone || "");
+  const [phone, setPhone] = useState(user?.phone_number || "");
   const [saving, setSaving] = useState(false);
 
   const handleSavePhone = async () => {
@@ -69,7 +91,7 @@ export default function Profile() {
       .select("*")
       .in("id", ids)
       .order("created_at", { ascending: false });
-    setSavedPosts((data ?? []) as DbPost[]);
+    setSavedPosts((data ?? []) as any[]);
     setSavedLoading(false);
   };
 

@@ -27,30 +27,34 @@ export default function CounsellorDashboard() {
         { data: conversations },
       ] = await Promise.all([
         supabase
-          .from('conversations')
-          .select('id', { head: true, count: 'exact' })
-          .eq('counsellor_id', user.id)
-          .eq('status', 'active'),
+          .from("conversations")
+          .select("id", { head: true, count: "exact" })
+          .eq("counsellor_id", user.id)
+          .eq("status", "active"),
+
         supabase
-          .from('posts')
-          .select('id', { head: true, count: 'exact' })
-          .eq('is_private', false)
-          .eq('is_approved', true),
+          .from("posts")
+          .select("id", { head: true, count: "exact" })
+          .eq("is_private", false)
+          .eq("is_approved", true),
+
         supabase
-          .from('posts')
-          .select('id', { head: true, count: 'exact' })
-          .eq('is_crisis', true),
+          .from("posts")
+          .select("id", { head: true, count: "exact" })
+          .eq("is_crisis", true),
+
         supabase
-          .from('enrolments')
-          .select('id', { head: true, count: 'exact' })
-          .eq('counsellor_id', user.id)
-          .eq('status', 'active'),
+          .from("enrolments")
+          .select("id", { head: true, count: "exact" })
+          .eq("counsellor_id", user.id)
+          .eq("status", "active"),
+
         supabase
-          .from('conversations')
-          .select('*')
-          .eq('counsellor_id', user.id)
-          .eq('status', 'active')
-          .order('last_message_at', { ascending: false })
+          .from("conversations")
+          .select("*")
+          .eq("counsellor_id", user.id)
+          .eq("status", "active")
+          .order("last_message_at", { ascending: false })
           .limit(5),
       ]);
 
