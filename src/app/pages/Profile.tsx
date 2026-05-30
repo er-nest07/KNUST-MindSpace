@@ -8,38 +8,14 @@ import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import CounsellorBadge from "../components/shared/CounsellorBadge";
 import AnonymousAvatar from "../components/shared/AnonymousAvatar";
-import { supabase } from "../lib/supabase";
-import { type DbPost } from "../lib/community";
-import TopicTag from "../components/feed/TopicTag";
-
-const SAVED_KEY = "mindspace_saved_posts";
-
-function readSaved(): string[] {
-  try {
-    const raw = localStorage.getItem(SAVED_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function removeSaved(postId: string) {
-  const ids = readSaved().filter((id) => id !== postId);
-  localStorage.setItem(SAVED_KEY, JSON.stringify(ids));
-}
-
-type Tab = "profile" | "saved";
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>("profile");
-  const [savedPosts, setSavedPosts] = useState<DbPost[]>([]);
-  const [savedLoading, setSavedLoading] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    navigate("/");
+    navigate('/');
   };
 
   const loadSavedPosts = async () => {
@@ -169,26 +145,26 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Account Details */}
-            <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] mb-6">
-              <h3 className="font-bold text-[#004D2C] mb-4">Account Details</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Email</span>
-                  <span className="font-semibold text-[#004D2C]">{user.email}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Account Type</span>
-                  <span className="font-semibold text-[#004D2C] capitalize">{user.role}</span>
-                </div>
-                {user.role === "student" && (
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-600">Visibility Setting</span>
-                    <span className="font-semibold text-[#004D2C] capitalize">{user.visibility}</span>
-                  </div>
-                )}
-              </div>
+        {/* Account Details */}
+        <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] mb-6">
+          <h3 className="font-bold text-[#004D2C] mb-4">Account Details</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between py-2 border-b border-gray-100">
+              <span className="text-gray-600">Email</span>
+              <span className="font-semibold text-[#004D2C]">{user.email}</span>
             </div>
+            <div className="flex justify-between py-2 border-b border-gray-100">
+              <span className="text-gray-600">Account Type</span>
+              <span className="font-semibold text-[#004D2C] capitalize">{user.role}</span>
+            </div>
+            {user.role === 'student' && (
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600">Visibility Setting</span>
+                <span className="font-semibold text-[#004D2C] capitalize">{user.visibility}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
             {/* Privacy Notice */}
             {user.role === "student" && (
