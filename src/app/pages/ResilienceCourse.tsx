@@ -33,7 +33,10 @@ export default function ResilienceCourse() {
     return (
       <div className="min-h-screen bg-[#E8F5EE] py-8 px-4">
         <div className="max-w-6xl mx-auto">
-          <WeekOneExercise />
+          <div className="space-y-6">
+            <CoursePath />
+            <WeekOneExercise />
+          </div>
         </div>
       </div>
     );

@@ -387,6 +387,7 @@ with check (
     from public.profiles p
     where p.id = auth.uid()
       and p.role in ('counsellor', 'admin')
+      and (p.role = 'admin' or (p.is_verified_counsellor = true and p.is_frozen = false))
   )
 );
 
@@ -400,6 +401,7 @@ using (
     from public.profiles p
     where p.id = auth.uid()
       and p.role in ('counsellor', 'admin')
+      and (p.role = 'admin' or (p.is_verified_counsellor = true and p.is_frozen = false))
   )
 )
 with check (
@@ -408,6 +410,7 @@ with check (
     from public.profiles p
     where p.id = auth.uid()
       and p.role in ('counsellor', 'admin')
+      and (p.role = 'admin' or (p.is_verified_counsellor = true and p.is_frozen = false))
   )
 );
 
@@ -466,18 +469,28 @@ for select
 to authenticated
 using (student_id = auth.uid() or counsellor_id = auth.uid());
 
-create policy "counsellors create enrolments"
+create policy "students create their enrolments"
 on public.enrolments
 for insert
 to authenticated
-with check (counsellor_id = auth.uid());
+with check (
+  student_id = auth.uid()
+  and exists (
+    select 1
+    from public.profiles p
+    where p.id = counsellor_id
+      and p.role = 'counsellor'
+      and p.is_verified_counsellor = true
+      and p.is_frozen = false
+  )
+);
 
-create policy "counsellors update enrolments"
+create policy "participants update enrolments"
 on public.enrolments
 for update
 to authenticated
-using (counsellor_id = auth.uid())
-with check (counsellor_id = auth.uid());
+using (student_id = auth.uid() or counsellor_id = auth.uid())
+with check (student_id = auth.uid() or counsellor_id = auth.uid());
 
 -- Check-ins
 create policy "participants can read checkins"

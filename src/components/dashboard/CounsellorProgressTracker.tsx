@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, Loader2, MessageSquareText, RefreshCcw } fro
 import { useAuth } from "@/app/context/AuthContext";
 import { supabase } from "@/app/lib/supabase";
 import { type DbEnrolment, type DbProfile, type DbProgramme } from "@/app/lib/community";
+import { LEGACY_RESILIENCE_PROGRAM_TITLE, RESILIENCE_PROGRAM_TITLE, RESILIENCE_TOTAL_WEEKS } from "@/app/lib/resilienceCourse";
 
 type ActiveEnrolment = DbEnrolment & {
   current_week?: number | null;
@@ -22,6 +23,7 @@ type TrackerRow = {
   enrolment: ActiveEnrolment;
   student: DbProfile | undefined;
   programme: DbProgramme | undefined;
+  programmeName: string | undefined;
   currentWeek: number;
   totalWeeks: number;
   progressPercent: number;
@@ -141,14 +143,17 @@ export default function CounsellorProgressTracker() {
     return enrolments.map((enrolment) => {
       const programme = programmes.find((item) => item.id === enrolment.programme_id);
       const student = students.find((item) => item.id === enrolment.student_id);
+      const isResilienceCourse = Boolean(programme && [RESILIENCE_PROGRAM_TITLE, LEGACY_RESILIENCE_PROGRAM_TITLE].includes(programme.name));
       const currentWeek = enrolment.current_week ?? Math.max(1, Math.ceil(Math.max(enrolment.progress, 1) / 7));
-      const totalWeeks = programme ? toWeeks(programme.duration_days) : toWeeks(Math.max(enrolment.total_days, 1));
+      const totalWeeks = isResilienceCourse ? RESILIENCE_TOTAL_WEEKS : programme ? toWeeks(programme.duration_days) : toWeeks(Math.max(enrolment.total_days, 1));
       const progressPercent = clampPercent((currentWeek / totalWeeks) * 100);
+      const programmeName = isResilienceCourse ? RESILIENCE_PROGRAM_TITLE : programme?.name;
 
       return {
         enrolment,
         student,
         programme,
+        programmeName,
         currentWeek,
         totalWeeks,
         progressPercent,
@@ -247,7 +252,7 @@ export default function CounsellorProgressTracker() {
                   </td>
 
                   <td className="px-5 py-4">
-                    <div className="font-medium text-slate-900">{row.programme?.name ?? "Programme unavailable"}</div>
+                    <div className="font-medium text-slate-900">{row.programmeName ?? "Programme unavailable"}</div>
                     <div className="text-sm text-slate-500">{row.programme?.checkin_frequency ?? "Schedule unavailable"}</div>
                   </td>
 
