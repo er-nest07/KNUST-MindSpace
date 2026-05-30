@@ -43,6 +43,8 @@ export default function WeekOneExercise() {
     [courseData],
   );
 
+  const hasActiveEnrollment = Boolean(courseData?.enrollment);
+
   const toggleArea = (area: string) => {
     setSelectedAreas((current) =>
       current.includes(area) ? current.filter((item) => item !== area) : [...current, area],
@@ -51,7 +53,7 @@ export default function WeekOneExercise() {
 
   const handleComplete = async () => {
     if (!courseData?.enrollment) {
-      toast.error("No active enrollment found.");
+      toast.error("Join the course with a counsellor before completing Week 1.");
       return;
     }
 
@@ -80,14 +82,6 @@ export default function WeekOneExercise() {
     );
   }
 
-  if (error && !courseData?.enrollment) {
-    return (
-      <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-        {error}
-      </div>
-    );
-  }
-
   return (
     <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-6 py-5">
@@ -104,6 +98,12 @@ export default function WeekOneExercise() {
       </div>
 
       <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]">
+        {error && (
+          <div className="lg:col-span-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-6">
           <div className="rounded-2xl bg-slate-50 p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Week content</h2>
@@ -165,14 +165,20 @@ export default function WeekOneExercise() {
             <p className="mt-1">Mood score: {moodScore}/10.</p>
           </div>
 
+          {!hasActiveEnrollment && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              Week 1 content is open as a preview. Join the course from the Programmes page to save progress and unlock completion.
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => void handleComplete()}
-            disabled={isSaving}
+            disabled={!hasActiveEnrollment || isSaving}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            {isSaving ? "Completing Week 1..." : "Complete Week 1"}
+            {isSaving ? "Completing Week 1..." : hasActiveEnrollment ? "Complete Week 1" : "Join to Complete Week 1"}
           </button>
 
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">

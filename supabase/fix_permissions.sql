@@ -12,6 +12,7 @@ with check (
     select 1 from public.profiles p
     where p.id = auth.uid()
       and p.role in ('counsellor', 'admin')
+      and (p.role = 'admin' or (p.is_verified_counsellor = true and p.is_frozen = false))
   )
 );
 

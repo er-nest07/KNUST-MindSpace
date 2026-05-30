@@ -1,4 +1,4 @@
--- MindSpace KNUST: 6-Week Resilience Course
+-- MindSpace KNUST: 9-Week Mental Health Journey
 -- Run this in Supabase after your base auth/schema setup.
 
 create extension if not exists pgcrypto;
@@ -101,9 +101,9 @@ with check (student_id = auth.uid());
 insert into public.programs (id, title, description, total_weeks)
 values (
   '60000000-0000-0000-0000-000000000001',
-  '6-Week Student Resilience',
-  'A guided course that helps students understand stress, regulate emotions, and build sustainable resilience habits week by week.',
-  6
+  '9-Week Mental Health Journey',
+  'A guided course that helps students understand stress, regulate emotions, strengthen coping habits, and build sustainable resilience week by week.',
+  9
 )
 on conflict (id) do nothing;
 
@@ -166,30 +166,48 @@ You do not need to be perfect this week. The goal is to become more aware, not t
     '60000000-0000-0000-0000-000000000001',
     2,
     'Placeholder Week 2: Thought Patterns',
-    'Week 2 content will be released after Week 1 is completed.'
+    'Emotion naming, regulation, and short grounding techniques.'
   ),
   (
     '60000000-0000-0000-0000-000000000001',
     3,
-    'Placeholder Week 3: Self-Compassion',
-    'Week 3 content will be released after Week 2 is completed.'
+    'Stress Management & Relaxation',
+    'Breathwork, body scans, and stress first-aid planning.'
   ),
   (
     '60000000-0000-0000-0000-000000000001',
     4,
-    'Placeholder Week 4: Healthy Routines',
-    'Week 4 content will be released after Week 3 is completed.'
+    'Thought Patterns & Cognitive Reframing',
+    'Identifying distorted thoughts and replacing them with balanced alternatives.'
   ),
   (
     '60000000-0000-0000-0000-000000000001',
     5,
-    'Placeholder Week 5: Support Systems',
-    'Week 5 content will be released after Week 4 is completed.'
+    'Healthy Relationships & Communication',
+    'Boundary setting, assertiveness, and asking for support.'
   ),
   (
     '60000000-0000-0000-0000-000000000001',
     6,
-    'Placeholder Week 6: Resilience Review',
-    'Week 6 content will be released after Week 5 is completed.'
+    'Self-Compassion & The Inner Critic',
+    'Using self-compassion to respond to setbacks more kindly.'
+  ),
+  (
+    '60000000-0000-0000-0000-000000000001',
+    7,
+    'Purpose, Meaning & Academic Goals',
+    'Connecting daily effort to personal values and realistic goals.'
+  ),
+  (
+    '60000000-0000-0000-0000-000000000001',
+    8,
+    'Resilience & Coping with Setbacks',
+    'Building a wider coping repertoire and knowing when to seek support.'
+  ),
+  (
+    '60000000-0000-0000-0000-000000000001',
+    9,
+    'Integration & Life Beyond the Programme',
+    'Reviewing progress and creating a maintenance plan for the future.'
   )
 on conflict (program_id, week_number) do nothing;

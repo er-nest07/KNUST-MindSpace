@@ -8,6 +8,8 @@ import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import CounsellorBadge from "../components/shared/CounsellorBadge";
 import AnonymousAvatar from "../components/shared/AnonymousAvatar";
+import { Input } from "../components/ui/input";
+import { supabase } from "../lib/supabase";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -16,6 +18,42 @@ export default function Profile() {
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  const [activeTab, setActiveTab] = useState("profile");
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [phone, setPhone] = useState(user.phone || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSavePhone = async () => {
+  try {
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        phone_number: phone,
+      })
+      .eq("id", user.id);
+
+    if (error) throw error;
+
+    alert("Phone number saved!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save number");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sendMessages = async () => {
+  await fetch("http://localhost:3000/send-audit-message", {
+    method: "POST",
+  });
+
+  alert("Messages sent!");
   };
 
   const loadSavedPosts = async () => {
@@ -33,6 +71,16 @@ export default function Profile() {
       .order("created_at", { ascending: false });
     setSavedPosts((data ?? []) as DbPost[]);
     setSavedLoading(false);
+  };
+
+  const readSaved = (): string[] => {
+  const saved = localStorage.getItem("savedPosts");
+  return saved ? JSON.parse(saved) : [];
+  };
+
+  const removeSaved = (postId: string) => {
+    const saved = readSaved().filter((id) => id !== postId);
+    localStorage.setItem("savedPosts", JSON.stringify(saved));
   };
 
   useEffect(() => {
@@ -103,6 +151,7 @@ export default function Profile() {
         {activeTab === "profile" && (
           <>
             {/* Profile Card */}
+            
             <div className="bg-white rounded-xl shadow-md p-8 border border-[#E8F5EE] mb-6">
               <div className="flex items-start gap-6 mb-6">
                 <div className="w-24 h-24 rounded-full bg-[#E8F5EE] flex items-center justify-center flex-shrink-0">
@@ -146,6 +195,7 @@ export default function Profile() {
             </div>
 
         {/* Account Details */}
+        
         <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] mb-6">
           <h3 className="font-bold text-[#004D2C] mb-4">Account Details</h3>
           <div className="space-y-3 text-sm">
@@ -157,14 +207,44 @@ export default function Profile() {
               <span className="text-gray-600">Account Type</span>
               <span className="font-semibold text-[#004D2C] capitalize">{user.role}</span>
             </div>
-            {user.role === 'student' && (
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-600">Visibility Setting</span>
-                <span className="font-semibold text-[#004D2C] capitalize">{user.visibility}</span>
+
+            <div className="bg-white rounded-xl shadow-md p-6 border border-[#E8F5EE] mb-6">
+              <h3 className="font-bold text-[#004D2C] mb-4">
+                WhatsApp Notifications
+              </h3>
+
+              <div className="space-y-4">
+                <Input
+                  type="tel"
+                  placeholder="+233XXXXXXXXX"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+
+                <Button
+                  onClick={handleSavePhone}
+                  disabled={saving}
+                  className="bg-[#006B3F] hover:bg-[#005533]"
+                >
+                  {saving ? "Saving..." : "Save Number"}
+                </Button>
+
+                <Button
+                  onClick={sendMessages}
+                  className="w-full"
+                >
+                  Send Audit Messages
+                </Button>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+                {user.role === 'student' && (
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Visibility Setting</span>
+                    <span className="font-semibold text-[#004D2C] capitalize">{user.visibility}</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Privacy Notice */}
             {user.role === "student" && (

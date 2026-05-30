@@ -3,7 +3,7 @@ import { BookOpen, CheckCircle2, ChevronDown, GraduationCap, Loader2, PlusCircle
 import { useAuth } from "@/app/context/AuthContext";
 import { supabase } from "@/app/lib/supabase";
 import { type DbConversation, type DbProfile, type DbProgramme } from "@/app/lib/community";
-import { RESILIENCE_PROGRAM } from "@/app/lib/resilienceCourse";
+import { LEGACY_RESILIENCE_PROGRAM_TITLE, RESILIENCE_PROGRAM, RESILIENCE_PROGRAM_TITLE } from "@/app/lib/resilienceCourse";
 import CounsellorProgressTracker from "./CounsellorProgressTracker";
 
 type TabKey = "courses" | "progress";
@@ -43,7 +43,7 @@ export default function CounsellorCourseManager() {
       id: "resilience-course-fallback",
       name: RESILIENCE_PROGRAM.title,
       description: RESILIENCE_PROGRAM.description,
-      duration_days: 42,
+      duration_days: 63,
       checkin_frequency: "weekly",
     }),
     [],
@@ -115,8 +115,8 @@ export default function CounsellorCourseManager() {
     [activeClients],
   );
 
-  const hasResilienceProgramme = programmes.some((programme) => programme.name === RESILIENCE_PROGRAM.title);
-  const displayProgrammes = hasResilienceProgramme ? programmes : [resilienceFallbackProgramme, ...programmes];
+  const hasAnyResilienceProgramme = programmes.some((programme) => [RESILIENCE_PROGRAM_TITLE, LEGACY_RESILIENCE_PROGRAM_TITLE].includes(programme.name));
+  const displayProgrammes = hasAnyResilienceProgramme ? programmes : [resilienceFallbackProgramme, ...programmes];
 
   const openAssignmentModal = (programme: CourseTemplate) => {
     setSelectedProgramme(programme);
@@ -198,9 +198,9 @@ export default function CounsellorCourseManager() {
 
         {activeTab === "courses" ? (
           <div className="space-y-6">
-            {!hasResilienceProgramme && (
+            {!hasAnyResilienceProgramme && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                The 6-Week Student Resilience course is not yet seeded in the database, so this dashboard shows a local preview card.
+                The 9-Week Mental Health Journey course is not yet seeded in the database, so this dashboard shows a local preview card.
               </div>
             )}
 
@@ -245,6 +245,9 @@ export default function CounsellorCourseManager() {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {displayProgrammes.map((programme) => {
                   const isFallbackResilience = programme.id === resilienceFallbackProgramme.id;
+                  const displayName = [RESILIENCE_PROGRAM_TITLE, LEGACY_RESILIENCE_PROGRAM_TITLE].includes(programme.name)
+                    ? RESILIENCE_PROGRAM.title
+                    : programme.name;
 
                   return (
                   <article key={programme.id} className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -253,7 +256,7 @@ export default function CounsellorCourseManager() {
                         <BookOpen className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-base font-semibold text-slate-900">{programme.name}</h3>
+                        <h3 className="text-base font-semibold text-slate-900">{displayName}</h3>
                         <p className="mt-1 text-sm text-slate-600">{programme.description}</p>
                       </div>
                     </div>
