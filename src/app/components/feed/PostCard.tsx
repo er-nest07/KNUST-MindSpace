@@ -7,6 +7,7 @@ import CounsellorBadge from "../shared/CounsellorBadge";
 import PostActions from "./PostActions";
 import CommentSection from "./CommentSection";
 
+
 interface PostCardProps {
   post: {
     id: string;

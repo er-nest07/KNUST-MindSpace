@@ -4,6 +4,7 @@ import { ArrowLeft, Send, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { type DbConversation, type DbMessage, type DbProfile } from "../lib/community";
+import { filterProfanity } from "../lib/profanityFilter";
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -214,7 +215,7 @@ export default function ChatPage() {
                     ? "bg-white border-2 border-[#006B3F]/30 text-gray-800 rounded-bl-sm"
                     : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm"
                   }`}>
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <p className="whitespace-pre-wrap">{filterProfanity(msg.content)}</p>
                 </div>
                 <p className={`text-xs text-gray-400 mt-1 ${isUser ? "text-right pr-1" : "pl-1"}`}>
                   {isOptimistic ? "Sending..." : formatTime(msg.created_at)}

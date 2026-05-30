@@ -3,6 +3,7 @@ import { Send, Trash2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 import AnonymousAvatar from "../shared/AnonymousAvatar";
+import { filterProfanity } from "../../lib/profanityFilter";
 
 interface Comment {
   id: string;
@@ -191,7 +192,7 @@ export default function CommentSection({ postId }: { postId: string }) {
                   </button>
                 )}
               </div>
-              <p className="text-sm text-gray-700 mt-0.5 leading-relaxed break-words">{c.content}</p>
+              <p className="text-sm text-gray-700 mt-0.5 leading-relaxed break-words">{filterProfanity(c.content)}</p>
             </div>
           </div>
         );

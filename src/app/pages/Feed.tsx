@@ -17,6 +17,7 @@ import {
   type DbProfile,
 } from "../lib/community";
 import { useAuth } from "../context/AuthContext";
+import { filterProfanity } from "../lib/profanityFilter";
 
 const TOPIC_META: Record<string, { Icon: LucideIcon; label: string }> = {
   all:           { Icon: LayoutGrid,    label: "All Topics" },
@@ -138,7 +139,7 @@ export default function Feed() {
         const author = getAuthorPresentation(profileMap.get(p.author_id));
         return {
           id: p.id,
-          content: p.content,
+          content: filterProfanity(p.content),
           topicTag: p.topic_tag,
           author: {
             id: p.author_id,
